@@ -61,8 +61,10 @@ namespace Cutra
 #if DEBUG
             debugWindow.Show();
 #endif
-            ShowSpace.MouseLeftButtonDown += Window_MouseLeftButtonDown;
-            ShowSpace.MouseLeftButtonUp += Window_MouseLeftButtonUp;
+            this.MouseLeftButtonDown += Window_MouseLeftButtonDown;
+            this.MouseLeftButtonUp += Window_MouseLeftButtonUp;
+            //            ShowSpace.MouseLeftButtonDown += Window_MouseLeftButtonDown;
+            //            ShowSpace.MouseLeftButtonUp += Window_MouseLeftButtonUp;
         }
 
 
@@ -161,6 +163,7 @@ namespace Cutra
                     var label = new System.Windows.Controls.Label();
                     Debug.WriteLine("Set!");
                     label.Content = str;
+                    
                     label.Background = new SolidColorBrush()
                     {
                         Color = System.Windows.Media.Color.FromArgb(255, 255, 255, 255)
@@ -173,7 +176,7 @@ namespace Cutra
                     ParentGrid.Children.Add(label);
                     Debug.WriteLine("add!");
 //                    label.Margin = new Thickness(rect.Left, rect.Top, rect.Right, rect.Bottom);
-                    label.Margin = new Thickness(50, 50, 300, 300);
+                    label.Margin = new Thickness(rect.Left, rect.Top, this.Width - rect.Right, this.Height - rect.Bottom);
                     Debug.WriteLine("thickness!");
                     Debug.WriteLine(rect);
                     Debug.WriteLine($"{rect.Left}, {rect.Top}, {rect.Right}, {rect.Bottom}");
