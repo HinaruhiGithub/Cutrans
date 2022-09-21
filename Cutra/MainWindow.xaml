@@ -15,7 +15,7 @@
             <Rectangle.ContextMenu>
                 <ContextMenu>
                     <MenuItem Name="CopyItem" Header="Copy" Click="Copy_String" />
-                    <MenuItem Name="EnableTranslate" Header="Translate to jp" IsCheckable="True" IsEnabled="False" />
+                    <MenuItem Name="EnableTranslate" Header="Translate to jp" IsCheckable="True" />
                     <MenuItem Name="QuitApp" Header="Quit" Click="Quit_Click"/>
                 </ContextMenu>
             </Rectangle.ContextMenu>

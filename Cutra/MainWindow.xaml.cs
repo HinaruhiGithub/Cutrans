@@ -17,9 +17,20 @@ using Tesseract;
 using System.IO;
 using System.Collections.Generic;
 using System.Windows.Media;
+using System.Windows.Controls;
 
 namespace Cutra
 {
+
+    public class OCRData
+    {
+        public string str;
+        public int fontSize;
+        public OpenCvSharp.Rect rect;
+    }
+
+
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -31,7 +42,7 @@ namespace Cutra
 
         string nowStack = "";
 
-        const double thresholdNum = 80;
+        const double thresholdNum = 160;
 
         System.Windows.Media.Color loadingColor = System.Windows.Media.Color.FromArgb(30, 241, 78, 82);
         System.Windows.Media.Color normalColor = System.Windows.Media.Color.FromArgb(30, 57, 112, 122);
@@ -57,7 +68,29 @@ namespace Cutra
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+
+            //いい感じに消す。
+            //grid内のlabelを全部消す
+            var labelList = new List<System.Windows.Controls.Label>();
+            foreach (UIElement item in ParentGrid.Children)
+            {
+                Debug.WriteLine(item);
+                if (item is System.Windows.Controls.Label)
+                {
+                    Debug.WriteLine("Detected!");
+                    var i = (System.Windows.Controls.Label)item;
+                    labelList.Add(i);
+                }
+            }
+            foreach (var item in labelList)
+            {
+                ParentGrid.Children.Remove(item);
+            }
+
+
             if (e.ButtonState != MouseButtonState.Pressed) return;
+
+
 
             this.DragMove();
         }
@@ -78,6 +111,9 @@ namespace Cutra
             CopyItem.IsEnabled = false;
             nowStack = "";
 
+
+            this.Hide();
+
             // OpenCV
             var mat = await Task<List<(Mat, OpenCvSharp.Rect)>>.Run(() =>
             {
@@ -95,27 +131,62 @@ namespace Cutra
                 return thresholdMats;
             });
 
+
+            this.Show();
+
             var brush = new SolidColorBrush();
             brush.Color = loadingColor;
             ShowSpace.Fill = brush;
             var isTranslateMode = EnableTranslate.IsChecked;
 
-            var strings = await Task<List<string>>.Run(() =>
+            var datas = await Task<List<OCRData>>.Run(() =>
             {
                 var detectedString = DetectString(mat, isTranslateMode);
                 return detectedString;
             });
 
-            foreach(var str in strings)
+            Debug.WriteLine("Finish OCR");
+
+            foreach (var data in datas)
             {
-                Debug.WriteLine(str);
+                Debug.WriteLine(data.str);
                 Debug.WriteLine("----------");
-                nowStack += str + "/n";
+                nowStack += data.str + "/n";
+
+                //翻訳モードなら、こっちどうにかする
+                if (isTranslateMode)
+                {
+                    var rect = data.rect;
+                    var str = data.str;
+                    var label = new System.Windows.Controls.Label();
+                    Debug.WriteLine("Set!");
+                    label.Content = str;
+                    label.Background = new SolidColorBrush()
+                    {
+                        Color = System.Windows.Media.Color.FromArgb(255, 255, 255, 255)
+                    };
+                    Debug.WriteLine("content");
+                    label.SetValue(Grid.RowProperty, 0);
+                    Debug.WriteLine("value1");
+                    label.SetValue(Grid.ColumnProperty, 0);
+                    Debug.WriteLine("value2");
+                    ParentGrid.Children.Add(label);
+                    Debug.WriteLine("add!");
+//                    label.Margin = new Thickness(rect.Left, rect.Top, rect.Right, rect.Bottom);
+                    label.Margin = new Thickness(50, 50, 300, 300);
+                    Debug.WriteLine("thickness!");
+                    Debug.WriteLine(rect);
+                    Debug.WriteLine($"{rect.Left}, {rect.Top}, {rect.Right}, {rect.Bottom}");
+                }
             }
+
+            Debug.WriteLine("Finish string!!");
+
 
             brush.Color = normalColor;
             ShowSpace.Fill = brush;
             CopyItem.IsEnabled = true;
+
         }
 
 
@@ -172,6 +243,7 @@ namespace Cutra
             Debug.WriteLine($"Contours : {contours.Length}");
             foreach(var contour in contours)
             {
+                Debug.WriteLine("Hey");
                 var area = Cv2.ContourArea(contour);
                 if(area <= 100000)
                 {
@@ -199,15 +271,16 @@ namespace Cutra
 
                 }
             }
+            Debug.WriteLine($"Finish Contours");
 
 
             return _rectMats;
         }
 
 
-        private List<string> DetectString(List<(Mat, OpenCvSharp.Rect)> _rectMats, bool isChecked)
+        private List<OCRData> DetectString(List<(Mat, OpenCvSharp.Rect)> _rectMats, bool isChecked)
         {
-            List<string> readTexts = new List<string>();
+            List<OCRData> readTexts = new List<OCRData>();
 
             //検出した画像分繰り返す
             foreach (var rectMat in _rectMats)
@@ -219,33 +292,48 @@ namespace Cutra
 
                     //画像をMatからPixに変換
                     var rectPix = Pix.LoadFromMemory(rectMat.Item1.ToBytes());
-                    
+
                     //画像データを渡してOcrを実行
-                    Page page = tesseract.Process(rectPix);
+                    Tesseract.Page page = tesseract.Process(rectPix);
+
                     Debug.WriteLine(page.GetText());
-                    readTexts.Add(page.GetText());
+
+                    var data = new OCRData()
+                    {
+                        str = page.GetText(),
+                        rect = rectMat.Item2,
+                        fontSize = 13
+                    };
+
+                    readTexts.Add(data);
+/*
                     //もし、翻訳をOnにしているなら、表示処理を行う。
                     if (isChecked)
                     {
                         var rect = rectMat.Item2;
+
                         ParentGrid.Dispatcher.BeginInvoke(new Action(() =>
                         {
-                            var textBlock = new System.Windows.Controls.TextBlock();
-//                            textBlock.Text = page.GetText();
-                            textBlock.Text = "あああああああああああああああ";
-                            textBlock.FontSize = rect.Height;
-                            Debug.WriteLine(rect.Height);
-                            textBlock.Margin = new Thickness(rect.Left, rect.Top, rect.Right, rect.Bottom);
+                            var label = new System.Windows.Controls.Label();
+                            Debug.WriteLine("Set!");
+//                            label.Content = page.GetText();
+                            label.Content = "ええええええええええええええ";
+                            Debug.WriteLine("content");
+                            label.SetValue(Grid.RowProperty, 0);
+                            Debug.WriteLine("value1");
+                            label.SetValue(Grid.ColumnProperty, 0);
+                            Debug.WriteLine("value2");
+                            ParentGrid.Children.Add(label);
+                            Debug.WriteLine("add!");
+                            label.Margin = new Thickness(rect.Left, rect.Top, rect.Right, rect.Bottom);
+                            Debug.WriteLine("thickness!");
                             Debug.WriteLine(rect);
-                            ParentGrid.Children.Add(textBlock);
+                            Debug.WriteLine($"{rect.Left}, {rect.Top}, {rect.Right}, {rect.Bottom}");
                         }));
-                        //                        textBlock.Parent = ParentGrid;
-/*
-                        textBlock.Text = page.GetText();
-                        textBlock.FontSize = rect.Height;
-*/
-                    }
 
+
+                    }
+*/
                 }
             }
 
