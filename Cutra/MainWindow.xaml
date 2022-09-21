@@ -1,4 +1,8 @@
 ﻿<Window x:Class="Cutra.MainWindow"
+        AllowsTransparency="True"
+        WindowStyle="None"
+        Background="Transparent"
+        ResizeMode="CanResizeWithGrip"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -7,6 +11,12 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-
+        <Rectangle x:Name="ShowSpace" Margin="0,0,0,0" Stroke="Cyan" Fill="#1E00FFFF">
+            <Rectangle.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Name="QuitApp" Header="Quit" Click="Quit_Click"/>
+                </ContextMenu>
+            </Rectangle.ContextMenu>
+        </Rectangle>
     </Grid>
 </Window>

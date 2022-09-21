@@ -1,0 +1,18 @@
+﻿<Window x:Class="Cutra.DebugImage"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Cutra"
+        mc:Ignorable="d"
+        Title="DebugImage" Height="250" Width="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+        <UniformGrid Grid.Row="0" Rows="1">
+            <Image x:Name="ScreenShot" OpacityMask="#FF914D4D" Stretch="Fill"/>
+            <Image x:Name="Binaried" OpacityMask="#FF914D4D" Stretch="Fill"/>
+        </UniformGrid>
+    </Grid>
+</Window>
