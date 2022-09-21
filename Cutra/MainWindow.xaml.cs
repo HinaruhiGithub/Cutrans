@@ -16,6 +16,7 @@ using OpenCvSharp.Extensions;
 using Tesseract;
 using System.IO;
 using System.Collections.Generic;
+using System.Windows.Media;
 
 namespace Cutra
 {
@@ -28,6 +29,15 @@ namespace Cutra
         //今回は英語のみ考える
         string langStr = "eng";
 
+        string nowStack = "";
+
+        const double thresholdNum = 80;
+
+        System.Windows.Media.Color loadingColor = System.Windows.Media.Color.FromArgb(30, 241, 78, 82);
+        System.Windows.Media.Color normalColor = System.Windows.Media.Color.FromArgb(30, 57, 112, 122);
+
+
+
         DebugImage debugWindow = new DebugImage();
 
 
@@ -37,7 +47,9 @@ namespace Cutra
 
             Debug.WriteLine(langPath);
 
+#if DEBUG
             debugWindow.Show();
+#endif
             ShowSpace.MouseLeftButtonDown += Window_MouseLeftButtonDown;
             ShowSpace.MouseLeftButtonUp += Window_MouseLeftButtonUp;
         }
@@ -63,27 +75,47 @@ namespace Cutra
             var leftTop = new Point((int)this.Left, (int)this.Top);
             var size = new Point((int)this.Width, (int)this.Height);
 
+            CopyItem.IsEnabled = false;
+            nowStack = "";
 
-            var strings = await Task<List<string>>.Run(() =>
+            // OpenCV
+            var mat = await Task<List<(Mat, OpenCvSharp.Rect)>>.Run(() =>
             {
                 var bitmap = CaptureScreen(leftTop, size);
                 var bitmapSource = BitmapToBitmapSource(bitmap);
+#if DEBUG
                 bitmapSource.Freeze();
                 debugWindow.ScreenShot.Dispatcher.BeginInvoke(new Action(() =>
                 {
                     debugWindow.ScreenShot.Source = bitmapSource;
                 }));
+#endif
                 var thresholdMats = TransformBitmapToMat(bitmap);
-                var detectedString = DetectString(thresholdMats);
-                return detectedString;
+
+                return thresholdMats;
             });
 
+            var brush = new SolidColorBrush();
+            brush.Color = loadingColor;
+            ShowSpace.Fill = brush;
+            var isTranslateMode = EnableTranslate.IsChecked;
+
+            var strings = await Task<List<string>>.Run(() =>
+            {
+                var detectedString = DetectString(mat, isTranslateMode);
+                return detectedString;
+            });
 
             foreach(var str in strings)
             {
                 Debug.WriteLine(str);
                 Debug.WriteLine("----------");
+                nowStack += str + "/n";
             }
+
+            brush.Color = normalColor;
+            ShowSpace.Fill = brush;
+            CopyItem.IsEnabled = true;
         }
 
 
@@ -106,19 +138,29 @@ namespace Cutra
         /// OpenCVでbitmapを変形する
         /// </summary>
         /// <param name="bitmap"></param>
-        private List<Mat> TransformBitmapToMat(Bitmap bitmap)
+        private List<(Mat, OpenCvSharp.Rect)> TransformBitmapToMat(Bitmap bitmap)
         {
             var _srcMat = BitmapConverter.ToMat(bitmap);
             var grayMat = _srcMat.CvtColor(ColorConversionCodes.BGR2GRAY);
+            var _thresholdMat = grayMat.Threshold(thresholdNum, 255, ThresholdTypes.Binary);
+
             //2値化
-            var _thresholdMat = grayMat.Threshold(90, 255, ThresholdTypes.BinaryInv);
+            var whiteAreaRatio = (float)_thresholdMat.CountNonZero() / (float)(_thresholdMat.Size().Width * _thresholdMat.Size().Height);
+            Debug.WriteLine(whiteAreaRatio);
+            //黒の方が大きかったら黒のほうにする。
+            if (whiteAreaRatio < 0.5f)
+            {
+                _thresholdMat = grayMat.Threshold(thresholdNum, 255, ThresholdTypes.BinaryInv);
+            }
 
             var binariedBitmap = BitmapToBitmapSource(BitmapConverter.ToBitmap(_thresholdMat));
+#if DEBUG
             binariedBitmap.Freeze();
             debugWindow.Binaried.Dispatcher.BeginInvoke(new Action(() =>
             {
                 debugWindow.Binaried.Source = binariedBitmap;
             }));
+#endif
 
 
             //ジャグ配列
@@ -126,7 +168,8 @@ namespace Cutra
             OpenCvSharp.HierarchyIndex[] hierarchyIndexes;
             //輪郭摘出
             _thresholdMat.FindContours(out contours, out hierarchyIndexes, RetrievalModes.External, ContourApproximationModes.ApproxNone);
-            List<Mat> _rectMats = new List<Mat>();
+            var _rectMats = new List<(Mat, OpenCvSharp.Rect)>();
+            Debug.WriteLine($"Contours : {contours.Length}");
             foreach(var contour in contours)
             {
                 var area = Cv2.ContourArea(contour);
@@ -152,7 +195,7 @@ namespace Cutra
                     var rect = new OpenCvSharp.Rect(retval.TopLeft, new OpenCvSharp.Size(retval.Width, retval.Height));
 
                     //検出した外接矩形を切り出し、Listに追加する
-                    _rectMats.Add(_thresholdMat.Clone(rect));
+                    _rectMats.Add((_thresholdMat.Clone(rect), rect));
 
                 }
             }
@@ -162,7 +205,7 @@ namespace Cutra
         }
 
 
-        private List<string> DetectString(List<Mat> _rectMats)
+        private List<string> DetectString(List<(Mat, OpenCvSharp.Rect)> _rectMats, bool isChecked)
         {
             List<string> readTexts = new List<string>();
 
@@ -175,12 +218,34 @@ namespace Cutra
                     //                    tesseract.SetVariable("tessedit_char_whitelist", "1234567890.");
 
                     //画像をMatからPixに変換
-                    var rectPix = Pix.LoadFromMemory(rectMat.ToBytes());
+                    var rectPix = Pix.LoadFromMemory(rectMat.Item1.ToBytes());
                     
                     //画像データを渡してOcrを実行
                     Page page = tesseract.Process(rectPix);
                     Debug.WriteLine(page.GetText());
                     readTexts.Add(page.GetText());
+                    //もし、翻訳をOnにしているなら、表示処理を行う。
+                    if (isChecked)
+                    {
+                        var rect = rectMat.Item2;
+                        ParentGrid.Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            var textBlock = new System.Windows.Controls.TextBlock();
+//                            textBlock.Text = page.GetText();
+                            textBlock.Text = "あああああああああああああああ";
+                            textBlock.FontSize = rect.Height;
+                            Debug.WriteLine(rect.Height);
+                            textBlock.Margin = new Thickness(rect.Left, rect.Top, rect.Right, rect.Bottom);
+                            Debug.WriteLine(rect);
+                            ParentGrid.Children.Add(textBlock);
+                        }));
+                        //                        textBlock.Parent = ParentGrid;
+/*
+                        textBlock.Text = page.GetText();
+                        textBlock.FontSize = rect.Height;
+*/
+                    }
+
                 }
             }
 
@@ -225,6 +290,12 @@ namespace Cutra
         private void Quit_Click(object sender, RoutedEventArgs e)
         {
             Application.Current.Shutdown();
+        }
+
+        private void Copy_String(object sender, RoutedEventArgs e)
+        {
+            if (nowStack == "") return;
+            System.Windows.Clipboard.SetText(nowStack);
         }
     }
 }

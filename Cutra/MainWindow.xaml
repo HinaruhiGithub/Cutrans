@@ -9,11 +9,13 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Cutra"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
-        <Rectangle x:Name="ShowSpace" Margin="0,0,0,0" Stroke="Cyan" Fill="#1E00FFFF">
+        Title="MainWindow" Height="450" Width="800" Topmost="True">
+    <Grid x:Name="ParentGrid">
+        <Rectangle x:Name="ShowSpace" Margin="0,0,0,0" Stroke="#FF39707A" Fill="#1E39707A">
             <Rectangle.ContextMenu>
                 <ContextMenu>
+                    <MenuItem Name="CopyItem" Header="Copy" Click="Copy_String" />
+                    <MenuItem Name="EnableTranslate" Header="Translate to jp" IsCheckable="True" IsEnabled="False" />
                     <MenuItem Name="QuitApp" Header="Quit" Click="Quit_Click"/>
                 </ContextMenu>
             </Rectangle.ContextMenu>
