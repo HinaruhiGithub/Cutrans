@@ -19,6 +19,10 @@ using System.Collections.Generic;
 using System.Windows.Media;
 using System.Windows.Controls;
 
+using System.Collections.Specialized;
+using static TexTra.APIAccessor_ja.HttpConnection;
+using System.Text.RegularExpressions;
+
 namespace Cutra
 {
 
@@ -36,6 +40,8 @@ namespace Cutra
     /// </summary>
     public partial class MainWindow : System.Windows.Window
     {
+
+
         string langPath = Directory.GetCurrentDirectory() + @"\tessdata";
         //今回は英語のみ考える
         string langStr = "eng";
@@ -61,6 +67,7 @@ namespace Cutra
 #if DEBUG
             debugWindow.Show();
 #endif
+//            RequestTranslate("apple");
             this.MouseLeftButtonDown += Window_MouseLeftButtonDown;
             this.MouseLeftButtonUp += Window_MouseLeftButtonUp;
             //            ShowSpace.MouseLeftButtonDown += Window_MouseLeftButtonDown;
@@ -162,7 +169,10 @@ namespace Cutra
                     var str = data.str;
                     var label = new System.Windows.Controls.Label();
                     Debug.WriteLine("Set!");
-                    label.Content = str;
+                    var translatedStr = RequestTranslate(str);
+                    Debug.WriteLine(str);
+                    Debug.WriteLine(translatedStr);
+                    label.Content = translatedStr;
                     
                     label.Background = new SolidColorBrush()
                     {
@@ -387,6 +397,29 @@ namespace Cutra
         {
             if (nowStack == "") return;
             System.Windows.Clipboard.SetText(nowStack);
+        }
+
+        private string RequestTranslate(string originalString)
+        {
+            string answer = "";
+
+
+            TexTra.APIAccessor_ja.APIResponseBean errorResponse;
+            var responseBean = TexTra.APIAccessor_ja.get_auto_trans(originalString,
+                TexTra.APIAccessor_ja.Language.en,
+                TexTra.APIAccessor_ja.Language.ja,
+                out errorResponse
+                );
+
+            if(errorResponse != null)
+                Debug.WriteLine(errorResponse.error_message);
+            foreach(var item in responseBean)
+            {
+                var obj = (TexTra.APIAccessor_ja.AutoTransInfo)(item.value);
+                answer += obj.text_translated;
+            }
+
+            return answer;
         }
     }
 }
