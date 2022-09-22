@@ -22,6 +22,7 @@ using System.Windows.Controls;
 using System.Collections.Specialized;
 using static TexTra.APIAccessor_ja.HttpConnection;
 using System.Text.RegularExpressions;
+using System.Linq;
 
 namespace Cutra
 {
@@ -226,6 +227,19 @@ namespace Cutra
         {
             var _srcMat = BitmapConverter.ToMat(bitmap);
             var grayMat = _srcMat.CvtColor(ColorConversionCodes.BGR2GRAY);
+            grayMat = gamma_correction(
+                adjust(grayMat, 2f),
+                4f
+                );
+            var grayedBitmap = BitmapToBitmapSource(BitmapConverter.ToBitmap(grayMat));
+
+#if DEBUG
+            grayedBitmap.Freeze();
+            debugWindow.Grayed.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                debugWindow.Grayed.Source = grayedBitmap;
+            }));
+#endif
             var _thresholdMat = grayMat.Threshold(thresholdNum, 255, ThresholdTypes.Binary);
 
             //2値化
@@ -420,6 +434,25 @@ namespace Cutra
             }
 
             return answer;
+        }
+
+
+        private Mat adjust(Mat mat, float alpha = 1.0f, float beta = 0f)
+        {
+            var dst = alpha * mat + beta;
+
+
+            return dst;
+        }
+
+
+        private Mat gamma_correction(Mat mat, float gamma)
+        {
+            var _table = Enumerable.Range(0, 256).Select(i => (byte)Math.Clamp(Math.Pow((i / 255f), gamma) * 255f, 0, 255)).ToArray();
+            Mat output = new Mat();
+            Cv2.LUT(mat, _table, output);
+
+            return output;
         }
     }
 }

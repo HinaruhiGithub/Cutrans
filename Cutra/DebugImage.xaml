@@ -12,6 +12,7 @@
         </Grid.RowDefinitions>
         <UniformGrid Grid.Row="0" Rows="1">
             <Image x:Name="ScreenShot" OpacityMask="#FF914D4D" Stretch="Fill"/>
+            <Image x:Name="Grayed" OpacityMask="#FF914D4D" Stretch="Fill"/>
             <Image x:Name="Binaried" OpacityMask="#FF914D4D" Stretch="Fill"/>
         </UniformGrid>
     </Grid>
